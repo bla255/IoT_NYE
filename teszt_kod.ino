@@ -18,7 +18,7 @@ uint64_t lastCode = 0; //utolso osszeszedett hex kod IR felol
 unsigned long lastIrMs = 0; //utolso IR vetel ido Msec
 const int PIN_PIR = 26, PIN_LED_ACT = 27, PIN_LED_NACT = 14; //PIR szenzor a Pin 26-ra kotve, Activity (mozgas erzekelve) led a 27-es pinre, 14es pinre pedig ha nincs mozgas.
 bool pirActive = false, pirPrev = LOW; //allapotvaltozok, alap setupkent nincs mozgas ugy veszem, tehat az elozo pir is low allapotba lesz, ne egjen a mozgas ledje.
-
+#define PIN_BUZZER 35 //csipogo
 
 //RS, EN, D4, D5, D6, D7
 LiquidCrystal lcd(22, 21, 5, 18, 23, 19); //16X2 LCD  PIN parameterek, letrehozzuk az objektumot.
@@ -77,6 +77,17 @@ void handleScroll() {
   scrollOffset = (scrollOffset + 1) % scrollTextBuffer.length();
 }
 //Ha aktiv a gorgetesunk, akkor 800msecenkent tolunk az LCD-n 1 karaktert mindket soron.
+
+
+
+
+void beepBuzzer() {
+  digitalWrite(PIN_BUZZER, HIGH);        // Buzzer bekapcs
+  delay(50);                     // tart, amíg csipog (pl. 60 ms)
+  digitalWrite(PIN_BUZZER, LOW);         // Buzzer kikapcs
+}
+//Csipogo kezelo
+
 
 void showHumTemp() {
   if (isnan(lastH) || isnan(lastT) || isnan(lastHI)) {
@@ -199,19 +210,21 @@ void handleIR() {
       Serial.println("DEBUG: " + String(debugMode ? "ON" : "OFF"));
     }
     else if (debugMode) showDebugCode(code);
-    else if (code == 0xE916FF00ULL) { currentMenu = 1; showHumTemp(); }
-    else if (code == 0xE619FF00ULL) { currentMenu = 2; showPIRactive = true; showPIR(); }
-    else if (code == 0xF20DFF00ULL) { currentMenu = 3; showDateTime(); }
-    else if (code == 0xF30CFF00ULL) { currentMenu = 4; showMenu(); }
-    else if (code == 0xE718FF00ULL) { currentMenu = 5; showWiFiInfo(); }
-    else if (code == 0xA15EFF00ULL) { currentMenu = 6; showSystemInfo(); }
+    else if (code == 0xE916FF00ULL) { currentMenu = 1; showHumTemp(); beepBuzzer();  }
+    else if (code == 0xE619FF00ULL) { currentMenu = 2; showPIRactive = true; showPIR(); beepBuzzer(); }
+    else if (code == 0xF20DFF00ULL) { currentMenu = 3; showDateTime(); beepBuzzer(); }
+    else if (code == 0xF30CFF00ULL) { currentMenu = 4; showMenu(); beepBuzzer(); }
+    else if (code == 0xE718FF00ULL) { currentMenu = 5; showWiFiInfo(); beepBuzzer(); }
+    else if (code == 0xA15EFF00ULL) { currentMenu = 6; showSystemInfo(); beepBuzzer(); }
     else if (code == 0xB946FF00ULL) { // Fel
       currentMenu = (currentMenu % 6) + 1;
       showMenuFunction(currentMenu);
+	  beepBuzzer();
     }
     else if (code == 0xEA15FF00ULL) { // Le
       currentMenu = currentMenu == 1 ? 6 : currentMenu - 1;
       showMenuFunction(currentMenu);
+	  beepBuzzer();
     }
   }
   IrReceiver.resume();
