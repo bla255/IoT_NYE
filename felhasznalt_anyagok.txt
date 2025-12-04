@@ -1,0 +1,38 @@
+IOT-hez kieg:
+
+Felhasznált anyagok:
+1X PIROS LED
+1X ZÖLD LED
+3X ~220ohm ellenállás
+1X 10kOhm ellenállás
+1X DHT11 szenzor
+1X PIR szenzor
+1X 3.3V - 5V Buzzer
+1X IR Vevő (kínai, talán HX1838 típus piros nyákon)
+1X 17 gombos IR irányító (kínai NEC protokollos)
+16X Jumper kábel Male-Female csatlakozóval
+10X breadboard átkötő huzal
+1X 400pin tesztpanel(breadboard)
+1X 1602A LCD kijelző (16X2)
+1X B5K lineáris potenciométer
+-----
+1X ESP-WROOM-32-ESP32S alappanel
+1X microUSB kábel tápellátáshoz
+-------------------------------------------------
+
+ESP32-re írt program leírása:
+Adott egy menüsor, 6. menüpont, melynek értékeit az ESP32 serialjára lehet kiírattatni, illetve a 16X2-es LCD kijelzőre.
+
+A felprogramozott irányítóval 1-6 gombjaival, illetve a Fel/Le nyilakkal van lehetőség ezen menüpontok között lapozni.
+
+A breadboardra illesztett Piros/Zöld LED esetében az a logika, hogy ha a PIR szenzor mozgás érzékel, csak a PIROS LED ég. 
+Ha nincs mozgás, csak a ZÖLD LED ég.
+
+A DHT11 szenzor méri a környezeti párát és hőmérsékletet.
+
+A buzzer minden egyes olyan irányító gomb interakciójára csippan, amely fel van tanítva. Jelen esetben az 1-6 gomb és a fel/le nyíl.
+Biztonsági és hallási okokból, illetve a környezeti zavarok miatt a funkcióhoz nem rendelt IR-en bekapott HEX kódokra nem csipog.
+Ebből kifolyólag a 7-8-9-0, #, <-, ->, OK gombokra nincs funkciórendelés, így azokra nem csippan.
+a * gomb funkció, lenyomása után a serialra minden IR vevő által megfogott HEX kód kiírásra kerül.
+
+
