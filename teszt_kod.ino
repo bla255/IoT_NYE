@@ -11,14 +11,16 @@ DHT dht(DHTPIN, DHTTYPE);
 const unsigned long DHT_INTERVAL = 2000; //2000msecenkent tortenik a lekerdezes
 unsigned long lastDhtMs = 0; //timer, utolso Dht lekerdezes ota eltelt ido
 float lastH = NAN, lastT = NAN, lastHI = NAN; //Elokeszitjuk a valtozokat. Utolso Humidity, Temperature, HeatIndex (Para,Ho,Hoerzet)
-
+#define PIN_BUTTON 13 //Gomb pin
+unsigned long lastButtonMs = 0;
+bool lastButtonState = HIGH;
 #define IR_RECEIVER_PIN 34 //Taviranyito IR vevoje a 34-es PINre teve
 #define DEBOUNCE_TIME 400 //400msec debounce timer
 uint64_t lastCode = 0; //utolso osszeszedett hex kod IR felol
 unsigned long lastIrMs = 0; //utolso IR vetel ido Msec
 const int PIN_PIR = 26, PIN_LED_ACT = 27, PIN_LED_NACT = 14; //PIR szenzor a Pin 26-ra kotve, Activity (mozgas erzekelve) led a 27-es pinre, 14es pinre pedig ha nincs mozgas.
 bool pirActive = false, pirPrev = LOW; //allapotvaltozok, alap setupkent nincs mozgas ugy veszem, tehat az elozo pir is low allapotba lesz, ne egjen a mozgas ledje.
-#define PIN_BUZZER 35 //csipogo
+#define PIN_BUZZER 12 //BUZZER PIN12-RE KÖLTÖZVE!
 
 //RS, EN, D4, D5, D6, D7
 LiquidCrystal lcd(22, 21, 5, 18, 23, 19); //16X2 LCD  PIN parameterek, letrehozzuk az objektumot.
@@ -29,7 +31,7 @@ const char* TZ_EU_BUD = "CET-1CEST,M3.5.0/2,M10.5.0/3"; //NTP timezone POSIX ido
 const char* NTP1 = "pool.ntp.org"; //elso NTp szerver
 const char* NTP2 = "time.nist.gov"; //backup NTP szerver
 
-bool showPIRactive = false, debugMode = false, scrollingActive = false; //ujabb allapotvaltozok ahhoz, hogy a PIR aktiv-e, a debugmode Iranyitorol #-al bekapcsolva van-e, illetve az LCDn a scrolling aktiv-e.
+bool showPIRactive = false, debugMode = false, scrollingActive = false; //ujabb allapotvaltozok
 int currentMenu = 1; //Default menunk az 1-es.
 unsigned long lastScrollMs = 0; //Utolso scroll ota eltelt ido.
 String scrollTextBuffer = ""; //Alapertelmezeskent az LCD scrolltextbufferje legyen ures.
@@ -40,8 +42,6 @@ void lcdPrint(String line1, String line2) {
   scrollTextTwoLines(fullText);
   Serial.println("--- " + line1 + " | " + line2 + " ---");
 } 
-//Ket sort adunk be a paramterekbe, ezeket osszefuzi es atadja a scrollTextTwoLines eljarasnak + Serialra is kiiratjuk.
-
 
 void scrollTextTwoLines(String fullText) {
   const int width = 16;
@@ -57,7 +57,6 @@ void scrollTextTwoLines(String fullText) {
   scrollTextBuffer = fullText;
   scrollOffset = 0;
 }
-//Ha a szovegunk kifer a 2X16 karakterbe, akkor kiirja ket sorba. Ha hosszabb, akkor bekapcsoljuk a gorgetes offsetet es elkezdjuk bufferbe tolni.
 
 void handleScroll() {
   if (!scrollingActive) return;
@@ -76,18 +75,12 @@ void handleScroll() {
   lcd.setCursor(0, 1); lcd.print(line2);
   scrollOffset = (scrollOffset + 1) % scrollTextBuffer.length();
 }
-//Ha aktiv a gorgetesunk, akkor 800msecenkent tolunk az LCD-n 1 karaktert mindket soron.
-
-
-
 
 void beepBuzzer() {
-  digitalWrite(PIN_BUZZER, HIGH);        // Buzzer bekapcs
-  delay(50);                     // tart, amíg csipog (pl. 60 ms)
-  digitalWrite(PIN_BUZZER, LOW);         // Buzzer kikapcs
+  digitalWrite(PIN_BUZZER, HIGH);        
+  delay(50);                             
+  digitalWrite(PIN_BUZZER, LOW);         
 }
-//Csipogo kezelo
-
 
 void showHumTemp() {
   if (isnan(lastH) || isnan(lastT) || isnan(lastHI)) {
@@ -99,12 +92,10 @@ void showHumTemp() {
   snprintf(l2, sizeof(l2), "Hoerzet:%4.1fC", lastHI);
   lcdPrint(l1, l2);
 }
-//A hoszenzor ertekeit ontjuk formaba. Ha nincs adat akkor -> LCD sor1 Nincs adat, LCD sor2 -> DHT ujraproba.
 
 void showPIR() {
-  lcdPrint("PIR: " + String(pirActive ? "Mozgas" : "Nincs"), pirActive ? "Mozgas" : "erzekelve");
+  lcdPrint("PIR: " + String(pirActive ? "Mozgas" : "Nincs"), pirActive ? "erzekelve" : "erzekelve");
 }
-//Pir allapotjelzo, mozog vagy sem.
 
 void showDateTime() {
   struct tm ti;
@@ -117,7 +108,6 @@ void showDateTime() {
     lcdPrint("Nincs ido", "Ellenorizd WIFI");
   }
 }
-//Datum - ido kiiratas.
 
 void showMenu() {
   String menuText = " 1:Homerseklet 2:PIR 3:Datum 4:Menu 5:WiFi 6:Sys";
@@ -133,7 +123,6 @@ void showMenu() {
   Serial.println("  6: Rendszer info");
   Serial.println("--------------------");
 }
-//menu kiiratas Serialra es LCD-re.
 
 void showSystemInfo() {
   uint32_t usedHeap = (ESP.getHeapSize() - ESP.getFreeHeap()) / 1024;
@@ -143,7 +132,6 @@ void showSystemInfo() {
   scrollTextTwoLines(sysText);
   Serial.printf("Mem:%lu/%luKB CPU:%luMHz\n", usedHeap, totalHeap, cpuFreq);
 }
-//LCD+Serial hardverinfo.
 
 void showWiFiInfo() {
   String ssid = WiFi.SSID();
@@ -153,7 +141,6 @@ void showWiFiInfo() {
   scrollTextTwoLines(wifiText);
   Serial.println("WiFi: " + ssid + " (" + String(quality) + "%)");
 }
-//Wifi allapot Serial+LCD.
 
 void showDebugCode(uint64_t code) {
   char buf[17];
@@ -161,7 +148,6 @@ void showDebugCode(uint64_t code) {
   lcdPrint("IR kod (HEX):", buf);
   Serial.println("IR: 0x" + String(buf, HEX));
 }
-//Ha aktiv, akkor serial+lcd IR-rol bekapott hex kod.
 
 void handleDHT() {
   unsigned long now = millis();
@@ -174,7 +160,6 @@ void handleDHT() {
     lastHI = dht.computeHeatIndex(t, h, false);
   }
 }
-//Loopba futo DHT lekerdezo algo, 2000msecenkent hivjuk be.
 
 void handlePIR() {
   int cur = digitalRead(PIN_PIR);
@@ -190,7 +175,25 @@ void handlePIR() {
   if (showPIRactive && cur != pirPrev) showPIR();
   pirPrev = cur;
 }
-//PIR erzekelo, Loopba folyamat megy. Ha a shiwPIRactive fel van kapcsolva, akkor csak allapotvaltasra frissul az lcd.
+
+void handleButton() {
+  bool buttonState = digitalRead(PIN_BUTTON);
+  
+  // Csak esést figyelünk (nyomás), pullup miatt LOW lesz nyomáskor
+  if (buttonState == LOW && lastButtonState == HIGH) {
+    unsigned long now = millis();
+    if (now - lastButtonMs > DEBOUNCE_TIME) { // 400ms debounce
+      lastButtonMs = now;
+      scrollingActive = false;
+      currentMenu = (currentMenu % 6) + 1;
+      showMenuFunction(currentMenu);
+      beepBuzzer();
+      
+      Serial.println("GOMB: FEL funkció aktiválva -> Menü " + String(currentMenu));
+    }
+  }
+  lastButtonState = buttonState;
+}
 
 void handleIR() {
   if (!IrReceiver.decode()) return;
@@ -203,7 +206,8 @@ void handleIR() {
   
   if (code != lastCode || (now - lastIrMs) > DEBOUNCE_TIME) {
     lastCode = code; lastIrMs = now;
-    scrollingActive = false; // Scroll leállítás IR-nél
+    scrollingActive = false;
+    
     if (code == 0xBD42FF00ULL) { // *
       debugMode = !debugMode;
       lcdPrint("DEBUG MOD:", debugMode ? "AKTIV" : "KI");
@@ -216,20 +220,19 @@ void handleIR() {
     else if (code == 0xF30CFF00ULL) { currentMenu = 4; showMenu(); beepBuzzer(); }
     else if (code == 0xE718FF00ULL) { currentMenu = 5; showWiFiInfo(); beepBuzzer(); }
     else if (code == 0xA15EFF00ULL) { currentMenu = 6; showSystemInfo(); beepBuzzer(); }
-    else if (code == 0xB946FF00ULL) { // Fel
+    else if (code == 0xB946FF00ULL) { // Fel - INDEPENDENS A PIR-TÓL!
       currentMenu = (currentMenu % 6) + 1;
       showMenuFunction(currentMenu);
-	  beepBuzzer();
+      beepBuzzer();
     }
-    else if (code == 0xEA15FF00ULL) { // Le
+    else if (code == 0xEA15FF00ULL) { // Le - INDEPENDENS A PIR-TÓL!
       currentMenu = currentMenu == 1 ? 6 : currentMenu - 1;
       showMenuFunction(currentMenu);
-	  beepBuzzer();
+      beepBuzzer();
     }
   }
   IrReceiver.resume();
 }
-//iranyito vezerlo. # = DEBUG mod, 1-6 menu, FEL/Le valtogatjuk a menut.
 
 void connectWiFiAndTime() {
   WiFi.mode(WIFI_STA);
@@ -241,7 +244,7 @@ void connectWiFiAndTime() {
     delay(1000);
     attempts++;
     Serial.print(" (" + String(attempts) + "/15)");
-    }
+  }
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println(" OK");
@@ -252,7 +255,6 @@ void connectWiFiAndTime() {
     WiFi.disconnect();
   }
 }
-//Wifihez csatlakozik es NTP lekerdez. Wifi timedoutol, ha 15masodperc alatt nem tud csatlakozni es serialra annak fuggvenyebe emgy a WIFI... OK/SIKERTELEN.
 
 void showMenuFunction(int menu) {
   showPIRactive = false;
@@ -264,7 +266,7 @@ void showMenuFunction(int menu) {
     case 5: showWiFiInfo(); break;
     case 6: showSystemInfo(); break;
   }
-} //currentMenu allapota alapja meghiva az adott fuggvenyt, illetve case 2-nel PIR allapotmenuben a PIRactivet truera rakja, hogy a ledek dolgozzanak es a kiiras folyamat loopban.
+}
 
 void setup() {
   Serial.begin(9600);
@@ -273,18 +275,19 @@ void setup() {
   dht.begin();
   IrReceiver.begin(IR_RECEIVER_PIN, ENABLE_LED_FEEDBACK);
   pinMode(PIN_PIR, INPUT);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_LED_ACT, OUTPUT); pinMode(PIN_LED_NACT, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_LED_ACT, LOW); digitalWrite(PIN_LED_NACT, HIGH);
+  digitalWrite(PIN_BUZZER, LOW);
   connectWiFiAndTime();
   showMenu();
 }
-//inicializalas.
-
 
 void loop() {
   handleIR();
   handleScroll();
   handleDHT();
   handlePIR();
+  handleButton(); 
 }
-//folyamatosan fut az esp cpun a loop.
